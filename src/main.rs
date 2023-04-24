@@ -1,7 +1,7 @@
 mod card;
 mod game;
 mod strategy;
-use std::sync::atomic::{AtomicU64};
+use std::{sync::atomic::{AtomicU64}, thread, time::Duration};
 use game::*;
 
 static TOTAL_GAMES: AtomicU64 = AtomicU64::new(0);
@@ -25,20 +25,27 @@ impl GameHandler for Handler {
 }
 
 fn main() {
-    for i in 1.. {
-        const PLAYERS: usize = 3;
-        let mut game = Game::<PLAYERS>::new();
-        game.run(Handler);
-        if i % 100000 == 0 {
-            // wins / games - 1/3 = advantage
-            let advantage = ((TOTAL_WINS.load(std::sync::atomic::Ordering::Relaxed) as f64)
+    const PLAYERS: usize = 3;
+    let mut handles = vec![
+        thread::spawn(||{
+            loop {
+                thread::sleep(Duration::from_secs(10));
+                let advantage = ((TOTAL_WINS.load(std::sync::atomic::Ordering::Relaxed) as f64)
                 / (TOTAL_GAMES.load(std::sync::atomic::Ordering::Relaxed) as f64)
                 - 1.0 / PLAYERS as f64) * PLAYERS as f64;
-            println!(
-                "[{}] +{:.2}%",
-                TOTAL_GAMES.load(std::sync::atomic::Ordering::Relaxed),
-                advantage * 100.0
-            )
-        }
+                println!("[{}] +{:.2}%", TOTAL_GAMES.load(std::sync::atomic::Ordering::Relaxed), advantage * 100.0);
+            }
+        })
+    ];
+    for _ in 0..4 {
+        handles.push(thread::spawn(|| {
+            loop {
+                let mut game = Game::<PLAYERS>::new();
+                game.run(Handler);
+            }
+        }));
+    }
+    for handle in handles {
+        handle.join().unwrap();
     }
 }

@@ -28,23 +28,29 @@ pub fn smart_move<const PLAYERS: usize>(game: &Game<PLAYERS>) -> Action {
             Action::Card(card)
         }
     } else {
-        let mut action = Action::Pass;
+        let mut possible_actions = vec![Action::Pass];
         for card in player {
             if game.stack_value == 0 && can_follow(game.top_card(), *card)
                 || card.0 == game.top_card().0
             {
-                if card.0 == Value::PlusFour || card.0 == Value::Wild {
-					// find the color the player has most of
-
-                    action = Action::Card((card.0, most_common_color(player)));
-                    break;
+                if card.0 == Value::PlusFour || card.0 == Value::Wild {                    
+                    possible_actions.push(Action::Card((card.0, most_common_color(player))));
                 } else {
-                    action = Action::Card(*card);
-                    break;
+                    possible_actions.push(Action::Card(*card));
                 }
             }
         }
-        action
+        let next_player_card_count = game.card_count(game.player + 1 % PLAYERS);
+        let action = *possible_actions.iter().min_by_key(|action| match (action, next_player_card_count) {
+            (Action::Pass, _) => 10,
+            // avoid using PlusFour if the next player already has a lot of cards
+            // (Action::Card((Value::PlusFour, _)), n) if n > 20 => 5,
+            (Action::Card((Value::PlusFour, _)), 1) => 1,
+            (Action::Card((Value::PlusTwo, _)), 1) => 1,
+            (Action::Card((Value::Wild, _)), _) => 4,
+            (Action::Card(_), _) => 3,
+        }).unwrap();
+        action  
     };
     action
 }

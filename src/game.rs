@@ -2,7 +2,7 @@ use rand::seq::SliceRandom;
 
 use super::card::*;
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum Action {
     Card(Card),
     Pass,
@@ -158,6 +158,7 @@ impl<const PLAYERS: usize> Game<PLAYERS> {
                     }
                 }
             }
+            // player wins when they have 0 cards
             if self.players[player].len() == 0 {
                 handler.on_win(&self, player);
                 break;
@@ -168,6 +169,7 @@ impl<const PLAYERS: usize> Game<PLAYERS> {
         let card = match self.pool.pop() {
             Some(card) => card,
             None => {
+                // move trash into pool if pool is empty
                 self.pool = self
                     .trash
                     .drain(..self.trash.len() - 1)
