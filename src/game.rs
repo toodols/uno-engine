@@ -107,7 +107,7 @@ impl<const PLAYERS: usize> Game<PLAYERS> {
                         }
                         self.player_selected = None;
                     } else {
-                        self.players[player].remove(
+                        self.players[player].swap_remove(
                             self.players[player]
                                 .iter()
                                 .position(|c| c == &card || c.1 == Color::None)
