@@ -25,11 +25,11 @@ lazy_static::lazy_static! {
                 pool.push((Value::Nine, color));
                 pool.push((Value::Block, color));
                 pool.push((Value::Reverse, color));
-                pool.push((Value::PlusTwo, color));
+                pool.push((Value::DrawTwo, color));
             }
         }
         for _ in 0..4 {
-            pool.push((Value::PlusFour, Color::None));
+            pool.push((Value::DrawFour, Color::None));
             pool.push((Value::Wild, Color::None));
         }
         pool
@@ -133,10 +133,10 @@ impl<const PLAYERS: usize> Game<PLAYERS> {
                                 Direction::Backward => Direction::Forward,
                             };
                         }
-                        (Value::PlusTwo, _) => {
+                        (Value::DrawTwo, _) => {
                             self.stack_value += 2;
                         }
-                        (Value::PlusFour, _) => {
+                        (Value::DrawFour, _) => {
                             self.stack_value += 4;
                         }
                         _ => {}
@@ -174,7 +174,7 @@ impl<const PLAYERS: usize> Game<PLAYERS> {
                     .trash
                     .drain(..self.trash.len() - 1)
                     .map(|card| {
-                        if card.0 == Value::Wild || card.0 == Value::PlusFour {
+                        if card.0 == Value::Wild || card.0 == Value::DrawFour {
                             (card.0, Color::None)
                         } else {
                             card

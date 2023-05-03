@@ -12,8 +12,8 @@ pub enum Value {
     Nine,
     Block,
     Reverse,
-    PlusTwo,
-    PlusFour,
+    DrawTwo,
+    DrawFour,
     Wild,
 }
 
@@ -63,12 +63,12 @@ pub fn can_follow(old: Card, new: Card) -> bool {
         ((Value::Nine, _), (Value::Nine, _)) => true,
         ((Value::Block, _), (Value::Block, _)) => true,
         ((Value::Reverse, _), (Value::Reverse, _)) => true,
-        ((Value::PlusTwo, _), (Value::PlusTwo, _)) => true,
+        ((Value::DrawTwo, _), (Value::DrawTwo, _)) => true,
         ((_, Color::Red), (_, Color::Red)) => true,
         ((_, Color::Blue), (_, Color::Blue)) => true,
         ((_, Color::Green), (_, Color::Green)) => true,
         ((_, Color::Yellow), (_, Color::Yellow)) => true,
-        (_, (Value::PlusFour, _)) => true,
+        (_, (Value::DrawFour, _)) => true,
         (_, (Value::Wild, _)) => true,
         _ => false,
     }
