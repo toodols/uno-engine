@@ -37,13 +37,20 @@ lazy_static::lazy_static! {
 }
 
 pub struct Game<const PLAYERS: usize> {
+    /// The current player
     pub player: usize,
+    /// The draw pool. Cards are drawn from here
     pool: Vec<Card>,
+    /// The trash pool. Cards are placed on here
     trash: Vec<Card>,
+    /// The cards of each player
     players: [Vec<Card>; PLAYERS],
+    /// The card the player has drawn, which they make play or keep.
     pub player_selected: Option<Card>,
+    /// The cumulative amount of +2 / +4 that have been stacked
     pub stack_value: usize,
     rng: rand::rngs::ThreadRng,
+    /// The direction of play.
     pub direction: Direction,
 }
 
@@ -54,7 +61,10 @@ pub enum Direction {
 
 pub trait GameHandler {
     fn on_turn<const PLAYERS: usize>(&mut self, state: &Game<PLAYERS>) -> Action;
-    fn on_win<const PLAYERS: usize>(&mut self, state: &Game<PLAYERS>, winner: usize);
+    fn on_win<const PLAYERS: usize>(&mut self, _state: &Game<PLAYERS>, _winner: usize) {}
+    fn on_pool_exhaustion<const PLAYERS: usize>(&mut self, _state: &Game<PLAYERS>) {
+        // println!("Pool exhausted. Game ended prematurely");
+    }
 }
 
 impl<const PLAYERS: usize> Game<PLAYERS> {
@@ -64,6 +74,12 @@ impl<const PLAYERS: usize> Game<PLAYERS> {
     pub fn top_card(&self) -> Card {
         *self.trash.last().unwrap()
     }
+    
+    /// CHEATING
+    pub fn get_player_mut(&mut self, player: usize) -> &mut Vec<Card> {
+        &mut self.players[player]
+    }
+
     fn advance(&mut self, turns: usize) {
         match self.direction {
             Direction::Forward => self.player = (self.player + turns) % PLAYERS,
@@ -73,12 +89,17 @@ impl<const PLAYERS: usize> Game<PLAYERS> {
     pub fn run(&mut self, mut handler: impl GameHandler) {
         loop {
             let player = self.player;
+
+            // Skip player if they cannot stack a +2 / +4
             if self.stack_value > 0
                 && !self.players[player]
                     .iter()
                     .any(|e| e.0 == self.top_card().0)
             {
-                self.draw_into(player, self.stack_value);
+                if self.draw_into(player, self.stack_value).is_err() {
+                    handler.on_pool_exhaustion(self);
+                    break;
+                };
                 self.stack_value = 0;
                 self.advance(1);
                 continue;
@@ -87,7 +108,7 @@ impl<const PLAYERS: usize> Game<PLAYERS> {
             let action = handler.on_turn(&self);
             match action {
                 Action::Card(card) => {
-                    if cfg!(validate_actions) {
+                    if cfg!(feature="validate_actions") {
                         if self.stack_value > 0 && card.0 != self.top_card().0 {
                             panic!("Must stack or draw");
                         }
@@ -100,7 +121,7 @@ impl<const PLAYERS: usize> Game<PLAYERS> {
                     }
                     if self.player_selected.is_some() {
                         let selected = *self.player_selected.as_ref().unwrap();
-                        if cfg!(validate_actions) {
+                        if cfg!(feature="validate_actions") {
                             if selected != card && selected.1 != Color::None {
                                 panic!("Must use card ");
                             }
@@ -149,11 +170,16 @@ impl<const PLAYERS: usize> Game<PLAYERS> {
                         self.advance(1);
                     } else {
                         let card = self.draw();
-                        if can_follow(self.top_card(), card) {
-                            self.player_selected = Some(card);
+                        if let Some(card) = card {
+                            if can_follow(self.top_card(), card) {
+                                self.player_selected = Some(card);
+                            } else {
+                                self.players[player].push(card);
+                                self.advance(1);
+                            }
                         } else {
-                            self.players[player].push(card);
-                            self.advance(1);
+                            handler.on_pool_exhaustion(self);
+                            break;
                         }
                     }
                 }
@@ -165,11 +191,13 @@ impl<const PLAYERS: usize> Game<PLAYERS> {
             }
         }
     }
-    fn draw(&mut self) -> Card {
-        let card = match self.pool.pop() {
-            Some(card) => card,
+
+    // Take the first card from the pool
+    fn draw(&mut self) -> Option<Card> {
+        match self.pool.pop() {
+            card @ Some(_) => card,
+            // recycle trash back into pool if pool is empty
             None => {
-                // move trash into pool if pool is empty
                 self.pool = self
                     .trash
                     .drain(..self.trash.len() - 1)
@@ -182,16 +210,21 @@ impl<const PLAYERS: usize> Game<PLAYERS> {
                     })
                     .collect();
                 self.pool.shuffle(&mut self.rng);
-                self.pool.pop().unwrap()
+                return self.pool.pop()
             }
-        };
-        card
-    }
-    fn draw_into(&mut self, player: usize, amount: usize) {
-        for _ in 0..amount {
-            let card = self.draw();
-            self.players[player].push(card);
         }
+    }
+
+
+    fn draw_into(&mut self, player: usize, amount: usize) -> Result<(),()> {
+        for _ in 0..amount {
+            if let Some(card) = self.draw() {
+                self.players[player].push(card);
+            } else {
+                return Err(());
+            }
+        }
+        Ok(())
     }
     pub fn card_count(&self, player: usize) -> usize {
         self.players[player].len()
@@ -211,7 +244,7 @@ impl<const PLAYERS: usize> Game<PLAYERS> {
             stack_value: 0,
         };
         for player_num in 0..game.players.len() {
-            game.draw_into(player_num, 7);
+            game.draw_into(player_num, 7).unwrap();
         }
         game
     }

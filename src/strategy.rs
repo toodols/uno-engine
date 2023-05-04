@@ -20,7 +20,7 @@ pub fn smart_move<const PLAYERS: usize>(game: &Game<PLAYERS>) -> Action {
         if card.0 == Value::DrawFour || card.0 == Value::Wild {
             if player.len() == 1 {
                 Action::Card((card.0, player[0].1))
-            } else if game.card_count(game.player + 1 % PLAYERS) == 1 {
+            } else if game.card_count((game.player + 1) % PLAYERS) == 1 {
                 Action::Card((card.0, most_common_color(player)))
             } else {
 				Action::Pass
@@ -41,7 +41,7 @@ pub fn smart_move<const PLAYERS: usize>(game: &Game<PLAYERS>) -> Action {
                 }
             }
         }
-        let next_player_card_count = game.card_count(game.player + 1 % PLAYERS);
+        let next_player_card_count = game.card_count((game.player + 1) % PLAYERS);
         let action = *possible_actions.iter().min_by_key(|action| match (action, next_player_card_count) {
             (Action::Pass, _) => 10,
             // avoid using DrawFour if the next player already has a lot of cards
@@ -56,7 +56,6 @@ pub fn smart_move<const PLAYERS: usize>(game: &Game<PLAYERS>) -> Action {
     action
 }
 
-
 // Picks the first valid move
 // Technically spamming pass is also a valid move
 // But that ends up panicking because the game runs out of cards to draw
@@ -65,7 +64,7 @@ pub fn random_move<const PLAYERS: usize>(game: &Game<PLAYERS>) -> Action {
     let action = if game.player_selected.is_some() {
         let card = game.player_selected.unwrap();
         if card.0 == Value::DrawFour || card.0 == Value::Wild {
-            Action::Card((card.0, most_common_color()))
+            Action::Card((card.0, most_common_color(player)))
         } else {
             Action::Card(card)
         }
@@ -76,7 +75,7 @@ pub fn random_move<const PLAYERS: usize>(game: &Game<PLAYERS>) -> Action {
                 || card.0 == game.top_card().0
             {
                 if card.0 == Value::DrawFour || card.0 == Value::Wild {
-                    action = Action::Card((card.0, most_common_color()));
+                    action = Action::Card((card.0, most_common_color(player)));
                     break;
                 } else {
                     action = Action::Card(*card);
